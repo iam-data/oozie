@@ -1,0 +1,740 @@
+<workflow-app name="wf_${processName}_${targetTable}" xmlns="uri:oozie:workflow:0.4">
+ 	<global>
+    		<job-tracker>${jobTracker}</job-tracker>
+    		<name-node>${nameNode}</name-node>
+  	</global>
+	<credentials>
+		<credential name="itdatastore_hive_creds" type="hive2">
+			<property>
+				<name>hive2.jdbc.url</name>
+				<value>${metastoreUri}</value>
+			</property>
+			<property>
+				<name>hive2.server.principal</name>
+				<value>${metastorePrincipal}</value>
+			</property>
+			<property>
+                                <name>mapred.job.queue.name</name>
+                                <value>ets</value>
+                        </property>
+		</credential>
+	</credentials>
+	<start to="check_dependency"/>
+    	<action name="check_dependency">
+        <ssh xmlns="uri:oozie:ssh-action:0.1">
+            	<host>${focusNodeLogin}</host>
+       		<command>${checkDependency}</command>
+		<args>${processName}</args>
+		<args>${sourceDB}</args>
+		<args>${sourceTable}</args>
+		<args>${targetDB}</args>
+		<args>${targetTable}</args>
+		<capture-output/>
+      	 </ssh>
+   		<ok to="get_last_refresh_date"/>
+        	<error to="register_error"/>
+    	</action>
+    	<action name="get_last_refresh_date">
+        <ssh xmlns="uri:oozie:ssh-action:0.1">
+            	<host>${focusNodeLogin}</host>
+       		<command>${getLastRefreshDate}</command>
+		<args>${processName}</args>
+		<args>${targetDB}</args>
+		<args>${targetTable}</args>
+		<capture-output/>
+      	 </ssh>
+   		<ok to="load_typed_qualys_host_detail"/>
+        	<error to="register_error"/>
+    	</action>
+	<action name="load_typed_qualys_host_detail" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL}</script>
+			<param>source_schema=${sourceDB}</param>
+			<param>target_schema=${targetDB}</param>
+			<param>source_table=${sourceTable}</param>
+			<param>target_table=${targetTable}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+			<param>retentionPeriod=${wf:actionData('check_dependency')['tRetention']}</param>
+		</hive2>
+		<ok to="load_curation_qualys_host_detail"/>
+		<error to="register_error"/>
+	</action>
+	<action name="load_curation_qualys_host_detail" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_2}</script>
+			<param>source_schema=${sourceDB_2}</param>
+			<param>target_schema=${targetDB_2}</param>
+			<param>source_table=${sourceTable_2}</param>
+			<param>target_table=${targetTable_2}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+			<param>retentionPeriod=${wf:actionData('check_dependency')['cRetention']}</param>
+		</hive2>
+		<ok to="load_qualys_host_detail_dedupe"/>
+		<error to="register_error_2"/>
+	</action>
+	<action name="load_qualys_host_detail_dedupe" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_3}</script>
+			<param>source_schema=${sourceDB_3}</param>
+			<param>target_schema=${targetDB_3}</param>
+			<param>source_table=${sourceTable_3}</param>
+			<param>target_table=${targetTable_3}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+			<param>retentionPeriod=${wf:actionData('check_dependency')['cRetention']}</param>
+		</hive2>
+		<ok to="load_ix_qualys_taxonomy"/>
+		<error to="register_error_3"/>
+	</action>
+	<action name="load_ix_qualys_taxonomy" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_4}</script>
+			<param>source_schema=${sourceDB_4}</param>
+			<param>target_schema=${targetDB_4}</param>
+			<param>source_table=${sourceTable_4}</param>
+			<param>target_table=${targetTable_4}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+			<param>retentionPeriod=${wf:actionData('check_dependency')['tRetention']}</param>
+		</hive2>
+		<ok to="load_attribute_accuracy_metric"/>
+		<error to="register_error_4"/>
+	</action>
+	<action name="load_attribute_accuracy_metric" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_5}</script>
+			<param>source_schema=${sourceDB_5}</param>
+			<param>target_schema=${targetDB_5}</param>
+			<param>source_table=${sourceTable_5}</param>
+			<param>target_table=${targetTable_5}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+		</hive2>
+		<ok to="load_qualys_asset_authentication_metric"/>
+		<error to="register_error_5"/>
+	</action>
+	<action name="load_qualys_asset_authentication_metric" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_6}</script>
+			<param>source_schema=${sourceDB_6}</param>
+			<param>target_schema=${targetDB_6}</param>
+			<param>source_table=${sourceTable_6}</param>
+			<param>target_table=${targetTable_6}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+		</hive2>
+		<ok to="load_asset_metric"/>
+		<error to="register_error_6"/>
+	</action>
+	<action name="load_asset_metric" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_7}</script>
+			<param>source_schema=${sourceDB_7}</param>
+			<param>target_schema=${targetDB_7}</param>
+			<param>source_table=${sourceTable_7}</param>
+			<param>target_table=${targetTable_7}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+		</hive2>
+		<ok to="load_typed_qualys_asset_group"/>
+		<error to="register_error_7"/>
+	</action>
+	<action name="load_typed_qualys_asset_group" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_8}</script>
+			<param>source_schema=${sourceDB_8}</param>
+			<param>target_schema=${targetDB_8}</param>
+			<param>source_table=${sourceTable_8}</param>
+			<param>target_table=${targetTable_8}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+		</hive2>
+		<ok to="load_curated_qualys_asset_group"/>
+		<error to="register_error_8"/>
+	</action>
+	<action name="load_curated_qualys_asset_group" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_9}</script>
+			<param>source_schema=${sourceDB_9}</param>
+			<param>target_schema=${targetDB_9}</param>
+			<param>source_table=${sourceTable_9}</param>
+			<param>target_table=${targetTable_9}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+			<param>retentionPeriod=${wf:actionData('check_dependency')['tRetention']}</param>
+		</hive2>
+		<ok to="load_typed_qualys_scan_exclusion_list"/>
+		<error to="register_error_9"/>
+	</action>
+	<action name="load_typed_qualys_scan_exclusion_list" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${loadHQL_10}</script>
+			<param>source_schema=${sourceDB_10}</param>
+			<param>target_schema=${targetDB_10}</param>
+			<param>source_table=${sourceTable_10}</param>
+			<param>target_table=${targetTable_10}</param>
+			<param>last_refresh_date=${wf:actionData('get_last_refresh_date')['last_refresh_date']}</param>
+			<param>report_date=${wf:actionData('check_dependency')['report_date_y_m_d']}</param>
+		</hive2>
+		<ok to="validate_load"/>
+		<error to="register_error_10"/>
+	</action>
+	  <action name="validate_load">
+        	<ssh xmlns="uri:oozie:ssh-action:0.1">
+                	<host>${focusNodeLogin}</host>
+                	<command>${validateLoad}</command>
+			<args>${processName}</args>
+                	<args>${targetDB}</args>
+                	<args>${targetTable}</args>
+                	<args>${wf:actionData('check_dependency')['source_record_count']}</args>
+                	<args>${wf:actionData('check_dependency')['report_date']}</args>
+                	<capture-output/>
+         	</ssh>
+                <ok to="create_success_file"/>
+                <error to="register_error"/>
+        </action>
+	  <action name="create_success_file">
+        	<ssh xmlns="uri:oozie:ssh-action:0.1">
+                	<host>${focusNodeLogin}</host>
+                	<command>${createTriggerFile}</command>
+			<args>${processName}</args>
+                	<args>${targetDB}</args>
+                	<args>${targetTable}</args>
+                	<args>'${wf:actionData('check_dependency')['report_date']}'</args>
+                	<capture-output/>
+         	</ssh>
+                <ok to="reset_trigger_file"/>
+                <error to="register_error"/>
+        </action>
+	<action name="reset_trigger_file">
+	   <fs>
+	      <delete path='${nameNode}/apps/encrypted/grp/itdatastore/code/typed/input_trigger_files/qualys_host_detail_v3.success'/>
+	  </fs>
+	  <ok to="register_success"/>
+	  <error to="register_error"/>
+	</action>
+	<action name="register_error" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB}.${targetTable}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB}</param>
+		</hive2>
+		<ok to="register_error_2"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_2" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable_2}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_2}.${targetTable_2}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_2}</param>
+		</hive2>
+		<ok to="register_error_3"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_3" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable_3}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_3}.${targetTable_3}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_3}</param>
+		</hive2>
+		<ok to="register_error_4"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_4" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable_4}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_4}.${targetTable_4}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_4}</param>
+		</hive2>
+		<ok to="register_error_5"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_5" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable_5}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_5}.${targetTable_5}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_5}</param>
+		</hive2>
+		<ok to="register_error_6"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_6" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetTable_6}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_6}.${targetTable_6}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_6}</param>
+		</hive2>
+		<ok to="register_error_7"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_7" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetDB_7}.${targetTable_7}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_7}.${targetTable_7}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_7}</param>
+		</hive2>
+		<ok to="register_error_8"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_8" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetDB_8}.${targetTable_8}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_8}.${targetTable_8}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_8}</param>
+		</hive2>
+		<ok to="register_error_9"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_9" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetDB_9}.${targetTable_9}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_9}.${targetTable_9}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_9}</param>
+		</hive2>
+		<ok to="register_error_10"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_error_10" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+			<jdbc-url>${jdbc_url}</jdbc-url>
+			<script>${logHQL}</script>
+			<param>JOB_ID='${wf:id()}'</param>		
+			<param>JOB_NAME='${wf:name()}'</param>
+			<param>PROCESS_NAME='${processName}'</param>
+			<param>TABLE_NAME='${targetDB_10}.${targetTable_10}'</param>
+			<param>JOB_STATUS='${failed}'</param>
+			<param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+			<param>END_TIME='${timestamp()}'</param>
+			<param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+			<param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='${targetDB_10}.${targetTable_10}: Workflow ${wf:name()}-${wf:lastErrorNode()}'</param>
+			<param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+			<param>CREATE_TS='${timestamp()}'</param>
+			<param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+			<param>SRC_DB=${sourceDB_10}</param>
+		</hive2>
+		<ok to="kill-email"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB}.${targetTable}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB}</param>
+		</hive2>
+		<ok to="register_success_2"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_2" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_2}.${targetTable_2}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_2}</param>
+		</hive2>
+		<ok to="register_success_3"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_3" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_3}.${targetTable_3}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_3}</param>
+		</hive2>
+		<ok to="register_success_4"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_4" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_4}.${targetTable_4}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_4}</param>
+		</hive2>
+		<ok to="register_success_5"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_5" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_5}.${targetTable_5}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_5}</param>
+		</hive2>
+		<ok to="register_success_6"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_6" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_6}.${targetTable_6}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_6}</param>
+		</hive2>
+		<ok to="register_success_7"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_7" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_7}.${targetTable_7}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_7}</param>
+		</hive2>
+		<ok to="register_success_8"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_8" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_8}.${targetTable_8}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_8}</param>
+		</hive2>
+		<ok to="success-email"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_9" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_9}.${targetTable_9}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_9}</param>
+		</hive2>
+		<ok to="register_success_10"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="register_success_10" cred="itdatastore_hive_creds">
+		<hive2 xmlns="uri:oozie:hive2-action:0.1">
+  			<jdbc-url>${jdbc_url}</jdbc-url>
+                        <script>${logHQL}</script>
+                        <param>JOB_ID='${wf:id()}'</param>
+                        <param>JOB_NAME='${wf:name()}'</param>
+                        <param>PROCESS_NAME='${processName}'</param>
+                        <param>TABLE_NAME='${targetDB_10}.${targetTable_10}'</param>
+                        <param>JOB_STATUS='0'</param>
+                        <param>START_TIME='${wf:actionData('check_dependency')['job_start_time']}'</param>
+                        <param>END_TIME='${timestamp()}'</param>
+                        <param>REPORT_DATE='${wf:actionData('check_dependency')['report_date']}'</param>
+                        <param>RECORD_COUNT='${wf:actionData('validate_load')['target_record_count']}'</param>
+			<param>MESSAGE='succeess'</param>
+                        <param>NEXT_RUN_DATE='${wf:actionData('validate_load')['next_process_date']}'</param>
+                        <param>CREATE_TS='${timestamp()}'</param>
+                        <param>OOZIE_TIME_ZONE='${oozieTimeZone}'</param>
+                        <param>SRC_DB=${sourceDB_10}</param>
+		</hive2>
+		<ok to="success-email"/>
+		<error to="kill-email"/>
+	</action>
+	<action name="success-email" cred="itdatastore_hive_creds">
+   	<email xmlns="uri:oozie:email-action:0.2">
+      	<to>${recipients}</to>
+      	<subject>${emailSubject}:Workflow ${wf:name()} completed successfully</subject>
+      	<body>
+        	 <![CDATA[
+         	<table>
+			<tr><td>   WORKFLOW NAME </td>          <td> : ${wf:name()}   </td></tr>
+                        <tr><td>   WORKFLOW ID </td>            <td> : ${wf:id()}        </td></tr>
+                        <tr><td>   JOB START TIME </td>         <td> : '${wf:actionData('check_dependency')['job_start_time']}'        </td></tr>
+                        <tr><td>   JOB END TIME </td>           <td> : '${timestamp()}'        </td></tr>
+                        <tr><td>   SCHEMA NAME </td>            <td> : ${targetDB}        </td></tr>
+                        <tr><td>   TABLE NAME 1</td>             <td> : ${targetDB}.${targetTable}        </td></tr>
+                        <tr><td>   TABLE NAME 2</td>             <td> : ${targetDB_2}.${targetTable_2}        </td></tr>
+                        <tr><td>   TABLE NAME 3</td>             <td> : ${targetDB_3}.${targetTable_3}        </td></tr>
+                        <tr><td>   TABLE NAME 4</td>             <td> : ${targetDB_4}.${targetTable_4}        </td></tr>
+                        <tr><td>   TABLE NAME 5</td>             <td> : ${targetDB_5}.${targetTable_5}        </td></tr>
+                        <tr><td>   TABLE NAME 6</td>             <td> : ${targetDB_6}.${targetTable_6}        </td></tr>
+                        <tr><td>   TABLE NAME 7</td>             <td> : ${targetDB_7}.${targetTable_7}        </td></tr>
+                        <tr><td>   TABLE NAME 8</td>             <td> : ${targetDB_8}.${targetTable_8}        </td></tr>
+                        <tr><td>   TABLE NAME 9</td>             <td> : ${targetDB_9}.${targetTable_9}        </td></tr>
+                        <tr><td>   TABLE NAME 10</td>             <td> : ${targetDB_10}.${targetTable_10}        </td></tr>
+                        <tr><td>   REPORT DATE </td>            <td> : '${timestamp()}'    </td></tr>
+                        <tr><td>   NUMBER OF RECORDS (source)</td>: '${wf:actionData('check_dependency')['source_record_count']}'  </td></tr>
+                        <tr><td>   NUMBER OF RECORDS (target)</td>: '${wf:actionData('validate_load')['target_record_count']}'  </td></tr>
+                        <tr><td>   Message </td>          <td> : '${env}-${processName}.${targetTable} completed successfully'     	</table>	
+		]]>      
+	</body>      
+	<content_type>text/html</content_type>
+   	</email>	
+	<ok to="end"/>
+        <error to="kill-email"/>
+	</action>
+	<action name="kill-email" cred="itdatastore_hive_creds">
+   	<email xmlns="uri:oozie:email-action:0.2">
+      		<to>${failureRecipients}</to>
+      		<subject>FAILIURE NOTIFICATION! ${emailSubject}: Workflow ${wf:name()} failed</subject>
+      		<body>
+        		 <![CDATA[
+         		<table>
+                        <tr><td>   WORKFLOW NAME </td>          <td> : ${wf:name()}   </td></tr>
+                        <tr><td>   WORKFLOW ID </td>            <td> : ${wf:id()}        </td></tr>
+                        <tr><td>   JOB START TIME </td>         <td> : '${wf:actionData('check_dependency')['job_start_time']}'        </td></tr>
+                        <tr><td>   JOB END TIME </td>           <td> : '${timestamp()}'        </td></tr>
+                        <tr><td>   SCHEMA NAME </td>            <td> : ${targetDB}        </td></tr>
+                        <tr><td>   TABLE NAME 1</td>             <td> : ${targetDB}.${targetTable}        </td></tr>
+                        <tr><td>   TABLE NAME 2</td>             <td> : ${targetDB_2}.${targetTable_2}        </td></tr>
+                        <tr><td>   TABLE NAME 3</td>             <td> : ${targetDB_3}.${targetTable_3}        </td></tr>
+                        <tr><td>   TABLE NAME 4</td>             <td> : ${targetDB_4}.${targetTable_4}        </td></tr>
+                        <tr><td>   TABLE NAME 5</td>             <td> : ${targetDB_5}.${targetTable_5}        </td></tr>
+                        <tr><td>   TABLE NAME 6</td>             <td> : ${targetDB_6}.${targetTable_6}        </td></tr>
+                        <tr><td>   TABLE NAME 7</td>             <td> : ${targetDB_7}.${targetTable_7}        </td></tr>
+                        <tr><td>   TABLE NAME 8</td>             <td> : ${targetDB_8}.${targetTable_8}        </td></tr>
+                        <tr><td>   TABLE NAME 9</td>             <td> : ${targetDB_9}.${targetTable_9}        </td></tr>
+                        <tr><td>   TABLE NAME 10</td>            <td> : ${targetDB_10}.${targetTable_10}        </td></tr>
+                        <tr><td>   REPORT DATE </td>            <td> : '${timestamp()}'    </td></tr>
+                        <tr><td>   NUMBER OF RECORDS (source)</td>: '${wf:actionData('check_dependency')['source_record_count']}'  </td></tr>
+                        <tr><td>   NUMBER OF RECORDS (target)</td>: '${wf:actionData('validate_load')['target_record_count']}'  </td></tr>
+			<tr><td>   Error Message </td>          <td> : ${env}-${processName}.${targetTable}: Workflow ${wf:name()}-${wf:lastErrorNode()} failed </td></tr>
+         		</table>	
+			]]>      
+		</body>      
+		<content_type>text/html</content_type>
+	</email>
+		<ok to="killAction"/>
+		<error to="killAction"/>
+	</action>
+	<kill name="killAction">
+		<message>Failed, Error Message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+	</kill>
+	<end name="end"/>
+	
+</workflow-app>

@@ -1,0 +1,7 @@
+<coordinator-app xmlns="uri:oozie:coordinator:0.2" name ="coord-curation-qualys_software_inventory"  frequency="32 14 * * *"  start="${startTime}" end="${endTime}" timezone="${oozieTimeZone}">
+        <action>
+                <workflow>
+                        <app-path>${workflowPath}/wf-qualys_software_inventory.xml</app-path>
+                </workflow>
+        </action>
+</coordinator-app>
